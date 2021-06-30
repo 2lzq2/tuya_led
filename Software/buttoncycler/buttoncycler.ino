@@ -736,7 +736,7 @@ void myLEDShowText(unsigned char mode)
       {
         //循环显示结束时，更新颜色
         ledColor[index].setHue(firstPixelHue);
-        firstPixelHue ++;
+        firstPixelHue += 5;
       }
     }
     //显示当前列
