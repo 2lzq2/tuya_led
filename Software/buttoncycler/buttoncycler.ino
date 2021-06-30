@@ -230,21 +230,21 @@ unsigned char mcu_ver[] = {"1.0.0"};
 //字符串字模
 const unsigned char textCode[] =
 {
-  0x00, 0x00, 0x00, 0xC4, 0x07, 0x04, 0x3E, 0x44, 0x34, 0x44, 0x04, 0x44, 0x04, 0x44, 0x7F, 0xFC,
-  0x7F, 0xFC, 0x04, 0x44, 0x04, 0x44, 0x0C, 0xC4, 0x0C, 0x4C, 0x04, 0x0C, 0x00, 0x04, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3F, 0xFC, 0x10, 0x88, 0x10, 0x88, 0x10, 0x88, 0x10, 0x88,
-  0x10, 0x88, 0x10, 0x88, 0x3F, 0xFC, 0x1F, 0xFC, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x01, 0x80, 0x07, 0x00, 0x7F, 0xFC, 0x7F, 0xFC, 0x0C, 0x80, 0x0E, 0x80, 0x08, 0x8C, 0x08, 0xF8,
-  0x7F, 0xF0, 0x78, 0x80, 0x08, 0xB8, 0x1F, 0x8C, 0x1F, 0x84, 0x01, 0x84, 0x00, 0x80, 0x00, 0x00,
-  0x00, 0x04, 0x00, 0x0C, 0x3F, 0x98, 0x3F, 0x30, 0x11, 0x64, 0x11, 0x24, 0x11, 0x04, 0x3F, 0xFC,
-  0x3F, 0xFC, 0x21, 0x40, 0x61, 0x60, 0x23, 0x30, 0x23, 0x1C, 0x03, 0x0C, 0x00, 0x00, 0x00, 0x00
+  0x00, 0x00, 0xC4, 0x00, 0x04, 0x07, 0x44, 0x3E, 0x44, 0x34, 0x44, 0x04, 0x44, 0x04, 0xFC, 0x7F,
+  0xFC, 0x7F, 0x44, 0x04, 0x44, 0x04, 0xC4, 0x0C, 0x4C, 0x0C, 0x0C, 0x04, 0x04, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFC, 0x3F, 0x88, 0x10, 0x88, 0x10, 0x88, 0x10, 0x88, 0x10,
+  0x88, 0x10, 0x88, 0x10, 0xFC, 0x3F, 0xFC, 0x1F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x80, 0x01, 0x00, 0x07, 0xFC, 0x7F, 0xFC, 0x7F, 0x80, 0x0C, 0x80, 0x0E, 0x8C, 0x08, 0xF8, 0x08,
+  0xF0, 0x7F, 0x80, 0x78, 0xB8, 0x08, 0x8C, 0x1F, 0x84, 0x1F, 0x84, 0x01, 0x80, 0x00, 0x00, 0x00,
+  0x04, 0x00, 0x0C, 0x00, 0x98, 0x3F, 0x30, 0x3F, 0x64, 0x11, 0x24, 0x11, 0x04, 0x11, 0xFC, 0x3F,
+  0xFC, 0x3F, 0x40, 0x21, 0x60, 0x61, 0x30, 0x23, 0x1C, 0x23, 0x0C, 0x03, 0x00, 0x00, 0x00, 0x00
 };
 
 CRGB leds[PIXEL_COUNT];
 //LED显示模式
 unsigned char ledMode = MODE_NONE;
 //LED显示缓存，用于音乐律动
-unsigned char ledBuffer[32];
+unsigned short ledBuffer[16];
 //LED显示缓存索引
 unsigned char ledBufIndex = 0;
 //LED颜色缓存
@@ -495,11 +495,11 @@ unsigned char dp_process(unsigned char dpid, const unsigned char value[], unsign
 
     case DPID_MUSIC_DATA: //音乐律动
       ledMode = MODE_MUSIC;
-      if(isInMusicMode == 0)
+      if (isInMusicMode == 0)
       {
         isInMusicMode = 1;
-        for(unsigned char i=0; i<16; i++)
-          ledColor[i].setRGB(0,0,0);
+        for (unsigned char i = 0; i < 16; i++)
+          ledColor[i].setRGB(0, 0, 0);
         ledBufIndex = 0;
         ledColorIndex = 0;
       }
@@ -606,103 +606,71 @@ void colorfill(CRGB color) {
 }
 
 //LED矩阵设置某行
-void maxtrixFillRow(CRGB color, unsigned char row, unsigned char data[2], unsigned char mode, unsigned char needupdate)
+void maxtrixFillRow(CRGB color, unsigned char row, unsigned short data, unsigned char mode, unsigned char needupdate)
 {
   unsigned char realrow;
   unsigned char realcol;
-  unsigned char temp;
+  unsigned short temp = data;
+
   switch (mode)
   {
-    case LED_MATRIX_UP:
+    case LED_MATRIX_UP: //从上往下显示
+      //起始行列计算
       realrow = row;
+      //因为LED为蛇形排列，需要判断奇偶行
       if (row & 0x01)
         realcol = 0;
       else
         realcol = LED_MATRIX_WIDTH - 1;
-
-      temp = data[1];
-      for (unsigned char i = 0; i < 8; i++)
+      for (unsigned char i = 0; i < 16; i++)
       {
+        //移位赋值，为1则显示颜色，为0则不显示
         if (temp & 0x01)
           leds[realrow * LED_MATRIX_WIDTH + realcol] = color;
         else
           leds[realrow * LED_MATRIX_WIDTH + realcol] = CRGB(0, 0, 0);
         temp = temp >> 1;
-        if (row & 0x01)
-          realcol++;
-        else
-          realcol--;
-      }
-      temp = data[0];
-      for (unsigned char i = 0; i < 8; i++)
-      {
-        if (temp & 0x01)
-          leds[realrow * LED_MATRIX_WIDTH + realcol] = color;
-        else
-          leds[realrow * LED_MATRIX_WIDTH + realcol] = CRGB(0, 0, 0);
-        temp = temp >> 1;
+        //因为LED为蛇形排列，需要判断奇偶行
         if (row & 0x01)
           realcol++;
         else
           realcol--;
       }
       break;
-    case LED_MATRIX_DOWN:
+    case LED_MATRIX_DOWN: //从下往上显示
+      //起始行列计算
       realrow = LED_MATRIX_HEIGHT - 1 - row;
+      //因为LED为蛇形排列，需要判断奇偶行
       if (row & 0x01)
         realcol = 0;
       else
         realcol = LED_MATRIX_WIDTH - 1;
-      temp = data[1];
-      for (unsigned char i = 0; i < 8; i++)
+      for (unsigned char i = 0; i < 16; i++)
       {
+        //移位赋值，为1则显示颜色，为0则不显示
         if (temp & 0x01)
           leds[realrow * LED_MATRIX_WIDTH + realcol] = color;
         else
           leds[realrow * LED_MATRIX_WIDTH + realcol] = CRGB(0, 0, 0);
         temp = temp >> 1;
-        if (row & 0x01)
-          realcol++;
-        else
-          realcol--;
-      }
-      temp = data[0];
-      for (unsigned char i = 0; i < 8; i++)
-      {
-        if (temp & 0x01)
-          leds[realrow * LED_MATRIX_WIDTH + realcol] = color;
-        else
-          leds[realrow * LED_MATRIX_WIDTH + realcol] = CRGB(0, 0, 0);
-        temp = temp >> 1;
+        //因为LED为蛇形排列，需要判断奇偶行
         if (row & 0x01)
           realcol++;
         else
           realcol--;
       }
       break;
-    case LED_MATRIX_LEFT:
+    case LED_MATRIX_LEFT: //从左往右显示
+      //起始行列计算
       realrow = LED_MATRIX_HEIGHT - 1;
-      temp = data[1];
-      for (unsigned char i = 0; i < 8; i++)
+      for (unsigned char i = 0; i < 16; i++)
       {
+        //因为LED为蛇形排列，需要判断奇偶行
         if (realrow & 0x01)
           realcol = row;
         else
           realcol = LED_MATRIX_WIDTH - 1 - row;
-        if (temp & 0x01)
-          leds[realrow * LED_MATRIX_WIDTH + realcol] = color;
-        else
-          leds[realrow * LED_MATRIX_WIDTH + realcol] = CRGB(0, 0, 0);
-        temp = temp >> 1;
-        realrow--;
-      }
-      temp = data[0];
-      for (unsigned char i = 0; i < 8; i++)
-      {
-        if (realrow & 0x01)
-          realcol = row;
-        else
-          realcol = LED_MATRIX_WIDTH - 1 - row;
+        //移位赋值，为1则显示颜色，为0则不显示
         if (temp & 0x01)
           leds[realrow * LED_MATRIX_WIDTH + realcol] = color;
         else
@@ -711,29 +679,17 @@ void maxtrixFillRow(CRGB color, unsigned char row, unsigned char data[2], unsign
         realrow--;
       }
       break;
-    case LED_MATRIX_RIGHT:
+    case LED_MATRIX_RIGHT:  //从右往左显示
+      //起始行列计算
       realrow = 0;
-      temp = data[1];
-      for (unsigned char i = 0; i < 8; i++)
+      for (unsigned char i = 0; i < 16; i++)
       {
+        //因为LED为蛇形排列，需要判断奇偶行
         if (realrow & 0x01)
           realcol = LED_MATRIX_WIDTH - 1 - row;
         else
           realcol = row;
-        if (temp & 0x01)
-          leds[realrow * LED_MATRIX_WIDTH + realcol] = color;
-        else
-          leds[realrow * LED_MATRIX_WIDTH + realcol] = CRGB(0, 0, 0);
-        temp = temp >> 1;
-        realrow++;
-      }
-      temp = data[0];
-      for (unsigned char i = 0; i < 8; i++)
-      {
-        if (realrow & 0x01)
-          realcol = LED_MATRIX_WIDTH - 1 - row;
-        else
-          realcol = row;
+        //移位赋值，为1则显示颜色，为0则不显示
         if (temp & 0x01)
           leds[realrow * LED_MATRIX_WIDTH + realcol] = color;
         else
@@ -747,41 +703,53 @@ void maxtrixFillRow(CRGB color, unsigned char row, unsigned char data[2], unsign
     FastLED.show();
 }
 
+//显示字幕，增加16列空白显示，作为起始与结束间的间隔
 void myLEDShowText(unsigned char mode)
 {
+  //有效显示区域为16列
   for (unsigned char i = 0; i < 16; i++)
   {
+    //计算当前显示列数
     unsigned char row = textLine + i;
+    //超界修正
     if (row >= 80)
       row -= 80;
 
-    unsigned char tmp[2];
+    unsigned short tmp;
+    //计算显示颜色
     unsigned char index = ledColorIndex + i;
+    //超界修正
     if (index >= 16)
       index -= 16;
     if (row < 16)
     {
-      tmp[0] = 0x00;
-      tmp[1] = 0x00;
+      //此时为无效列
+      tmp = 0;
     }
     else
     {
+      //有效列
       row -= 16;
-      tmp[0] = textCode[2 * row];
-      tmp[1] = textCode[2 * row + 1];
+      //更新显示内容
+      tmp = *((unsigned short*)(textCode + 2 * row));
       if (i == 15)
       {
+        //循环显示结束时，更新颜色
         ledColor[index].setHue(firstPixelHue);
         firstPixelHue ++;
       }
     }
+    //显示当前列
     maxtrixFillRow(ledColor[index], i, tmp, mode, 0);
   }
   FastLED.show();
+  //重新计算起始列数
   textLine++;
+  //超界修正
   if (textLine >= 80)
     textLine = 0;
   ledColorIndex++;
+  //超界修正
   if (ledColorIndex >= 16)
     ledColorIndex = 0;
 }
@@ -793,7 +761,7 @@ void myLEDShow()
     return;
   switch (ledMode)
   {
-    case MODE_RAINBOW_FLOW:
+    case MODE_RAINBOW_FLOW: //彩虹流水
       if (millis() - last_time >= 150)
       {
         last_time = millis();
@@ -806,7 +774,7 @@ void myLEDShow()
         firstPixelHue += 1;
       }
       break;
-    case MODE_RAINBOW_BLINK:
+    case MODE_RAINBOW_BLINK:  //彩虹闪烁
       if (millis() - last_time >= 150)
       {
         last_time = millis();
@@ -823,56 +791,63 @@ void myLEDShow()
           firstPixelHue = 0;
       }
       break;
-    case MODE_STR_UP:
+    case MODE_STR_UP: //字幕上移
       if (millis() - last_time >= 150)
       {
         last_time = millis();
         myLEDShowText(LED_MATRIX_UP);
       }
       break;
-    case MODE_STR_DOWN:
+    case MODE_STR_DOWN: //字幕下移
       if (millis() - last_time >= 150)
       {
         last_time = millis();
         myLEDShowText(LED_MATRIX_DOWN);
       }
       break;
-    case MODE_STR_LEFT:
+    case MODE_STR_LEFT: //字幕左移
       if (millis() - last_time >= 150)
       {
         last_time = millis();
         myLEDShowText(LED_MATRIX_LEFT);
       }
       break;
-    case MODE_STR_RIGHT:
+    case MODE_STR_RIGHT:  //字幕右移
       if (millis() - last_time >= 150)
       {
         last_time = millis();
         myLEDShowText(LED_MATRIX_RIGHT);
       }
       break;
-    case MODE_MUSIC:
+    case MODE_MUSIC:  //音乐律动
       if (isMusicNew)
       {
+        //逐列显示
         for (unsigned char i = 0; i < 16; i++)
         {
-          unsigned char bufindex = ledBufIndex + 2 * (i+1);
-          if (bufindex >= 32)
-            bufindex -= 32;
-          unsigned char colorindex = ledColorIndex + (i+1);
+          //计算起始索引
+          unsigned char bufindex = ledBufIndex + (i + 1);
+          //超界修正
+          if (bufindex >= 16)
+            bufindex -= 16;
+            //计算起始索引
+          unsigned char colorindex = ledColorIndex + (i + 1);
+          //超界修正
           if (colorindex >= 16)
             colorindex -= 16;
-          unsigned char tmp[2];
-          tmp[0] = ledBuffer[bufindex];
-          tmp[1] = ledBuffer[bufindex + 1];
-          maxtrixFillRow(ledColor[colorindex], i, tmp, LED_MATRIX_LEFT, 0);
+            //显示
+          maxtrixFillRow(ledColor[colorindex], i, ledBuffer[bufindex], LED_MATRIX_LEFT, 0);
         }
         FastLED.show();
+        //更新起始索引
         ledColorIndex++;
+        //超界修正
         if (ledColorIndex >= 16)
           ledColorIndex = 0;
-        ledBufIndex += 2;
-        if (ledBufIndex >= 32)
+          
+        ledBufIndex++;
+        //超界修正
+        if (ledBufIndex >= 16)
           ledBufIndex = 0;
         isMusicNew = 0;
       }
@@ -921,16 +896,16 @@ void colour_data_control( const unsigned char value[], u16 length)
   sat = s * 255 / 1000;
   val = v * 255 / 1000;
 
+  //根据数值生成颜色
   ledColor[ledColorIndex].setHue(hue);
 
+  //将v值从0~1000重新映射到1~16
   unsigned short ledvalue = v / 62;
   if (ledvalue < 1)
     ledvalue = 1;
 
-  ledvalue = (1 << ledvalue) - 1;
-
-  ledBuffer[ledBufIndex] = ledvalue >> 8;
-  ledBuffer[ledBufIndex + 1] = ledvalue & 0xFF;
+  //生成待显示数值，即二进制数有ledvalue个1
+  ledBuffer[ledBufIndex] = (1 << ledvalue) - 1;
 
   isMusicNew = 1;
 }
